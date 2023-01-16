@@ -7,6 +7,7 @@ def parse_opt():
     parser.add_argument("--img", type=str, default=None, help="select one of image : data/image.jpg") # image file name
     parser.add_argument("--source", type=str, default=None, help="image path : data/example") # image path
     parser.add_argument("--webcam", type=int, default=None, help="source of webcam : 0 / 1 / 2") # source number
+    parser.add_argument("--weights", type=str, default="s", help="select s / m / l") # yolov5s / yolov5m / yolov5l
     args = parser.parse_args()
     return args
 
@@ -26,13 +27,17 @@ def main():
     assert not (args.img is None and args.source is None \
         and args.webcam is None), "Few arguments to execute program"
 
-    if args.device == "cuda": # cuda를 사용할 경우
+    if args.device == "cuda": # cuda를 선택할 경우
         assert torch.cuda.is_available, "CUDA is not available" # cuda가 사용 불가능하다면
         device = torch.device("cuda:0")
     elif args.device == "mac": 
         device = torch.device("mps") # m1 mac
     else:
         device = torch.device("cpu") # cpu
+        
+    # detection model : yolov5s, yolov5m, yolov5l
+    model = torch.hub.load('ultralytics/yolov5', f'yolov5{args.weights}')
+    model = model.to(device)
     
     if args.img is not None: # 하나의 이미지
         pass                
