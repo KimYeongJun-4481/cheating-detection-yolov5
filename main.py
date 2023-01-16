@@ -108,7 +108,20 @@ def main():
         print(f"Time : {(time.time() - t):.2f}s") # 총 소요 시간 측정
                   
     elif args.source is not None: # 폴더(여러개의 이미지)
-        pass
+        assert os.path.isdir(args.source), f"No such directory : {args.source}" # 해당 폴더가 존재하지 않을 경우
+        src = Path(args.source) # 폴더의 경로
+        listdir = os.listdir(args.source) # 폴더 안에 존재하는 이미지들의 리스트
+        for i, img in enumerate(listdir):
+            if os.path.splitext(img)[1] not in [".png", ".jpg"]: # png나 jpg 형식이 아니라면 연산을 진행하지 않음
+                print(f"{i+1}/{len(listdir)} Warning : not an image or unvalid type({img})")
+                continue
+            
+            im, pred = predict(model, src / Path(img)) # 모델을 이용해 물체를 감지
+            annotate(im, pred, classes, class_names, colors, \
+                args.line_thickness, args.conf_thres, save_path / Path(img)) # bounding box가 포함된 결과를 이미지로 저장
+            print(f"{i+1}/{len(listdir)} save {save_path / Path(img)}") # 저장 확인 메시지
+    
+        print(f"Time : {(time.time() - t):.2f}s") # 총 소요 시간 측정
         
     elif args.webcam is not None: # 실시간 웹캠
         pass
