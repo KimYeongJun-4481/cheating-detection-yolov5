@@ -21,7 +21,12 @@ def main():
     classes = list(colors.keys()) # 클래스들의 영어 이름
     class_names = ["사람", "TV", "노트북", "휴대폰", "책"] # 클래스들의 한글 이름
     
-    print(classes)
+    if args.img is not None: # 하나의 이미지
+        pass
+    elif args.source is not None: # 폴더(여러개의 이미지)
+        pass
+    elif args.webcam is not None: # 실시간 웹캠
+        pass
     
 if __name__ == "__main__":
     main()
