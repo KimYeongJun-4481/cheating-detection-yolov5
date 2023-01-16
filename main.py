@@ -3,9 +3,12 @@ import cv2
 import time
 import torch
 import argparse
-from datetime import datetime
+import numpy as np
 from PIL import Image
 from pathlib import Path
+from datetime import datetime
+
+from utils.plots import Annotator, colors
 
 def parse_opt():
     parser = argparse.ArgumentParser()
@@ -15,6 +18,8 @@ def parse_opt():
     parser.add_argument("--weights", type=str, default="s", help="select s / m / l") # yolov5s / yolov5m / yolov5l
     parser.add_argument("--device", type=str, default="cuda", help="select cpu / cuda / mac") # CPU / CUDA / MAC
     parser.add_argument("--save_path", type=str, default=None, help="save results of images : first_test") # save path
+    parser.add_argument('--conf_thres', type=float, default=0.5, help='confidence threshold') # confidence threshold
+    parser.add_argument("--line_thickness", type=int, default=12, help="line width of bounding boxes") # line width of bounding boxes
     args = parser.parse_args()
     return args
 
@@ -28,8 +33,12 @@ def main():
               "cell phone" : [121, 56, 244],
               "book"       : [46, 240, 49]}
     classes = list(colors.keys()) # 클래스들의 영어 이름
-    class_names = ["사람", "TV", "노트북", "휴대폰", "책"] # 클래스들의 한글 이름
-        
+    class_names = {"person"     : "사람", # 클래스들의 한글 이름
+                   "tv"         : "TV",
+                   "laptop"     : "노트북",
+                   "cell phone" : "휴대폰",
+                   "book"       : "책"}
+    
     # 만약 세가지 옵션 중 하나라도 선택하지 않으면 예외 발생
     assert not (args.img is None and args.source is None \
         and args.webcam is None), "Few arguments to execute program"
@@ -56,14 +65,33 @@ def main():
     
     if args.img is not None: # 하나의 이미지
         res = model(Image.open(args.img)) # detection
+        im = cv2.imread(args.img) # 원본 이미지
         # xmin, ymin, xmax, ymax, confidence, classes -> DataFrame의 형태로
         pred = res.pandas().xyxy[0]   
         
-        print(pred)  
+        annotator = Annotator(im, line_width=args.line_thickness, example=classes)
+        count = {classes[i] : 0 for i in range(len(classes))} # 물체들의 개수
+        cheat = False
+        if len(pred):
+            for i in range(len(pred)):
+                *xyxy, conf, cls = pred.iloc[i, :].tolist() # xyxy(bounding box), confidence, class
+                if isinstance(conf, np.int64) and conf > 1.0: conf = np.float32(conf) / 100 # 정수형일 경우 실수형으로 변환
+                if cls not in classes or float(conf) < args.conf_thres: continue # 물체가 클래스 항목에 존재하고 conf_thres 값보다 클 경우만 부정행위로 간주
+                label = f"{cls} {float(conf):.2f}" # 클래스 정보와 confidence
+                annotator.box_label(xyxy, label, color=tuple(reversed(colors[cls]))) # annotator에 bounding box 그리기
+                count[cls] += 1 # 개수 측정 
+                print(f"부정행위 의심 : {class_names[cls]} 감지({conf*100:.2f}%)") # 부정행위 의심 메시지
+            
+            for key in count.keys(): 
+                if key == 'person' and count['person'] > 0: # 사람이 감지될 경우 명수를 출력
+                    print(f"사람 {count['person']}명 감지")
+                elif count[key] > 0: # 부정행위 의심에 해당하는 물체가 하나라도 감지됐을 경우
+                    cheat = True
+                    
+        if not cheat:
+            print("정상 : 감지된 물체 없음") # 감지된 물체가 없을 경우
         
-        res = res.render()[0] # render results
-        res = cv2.cvtColor(res, cv2.COLOR_BGR2RGB) # 컬러 채널 변환
-        cv2.imwrite(save_path / Path(args.img), res) # bounding box가 포함된 결과를 이미지로 저장
+        cv2.imwrite(save_path / Path(args.img), annotator.result()) # bounding box가 포함된 결과를 이미지로 저장
         print(f"Time : {(time.time() - t):.2f}s") # 총 소요 시간 측정
                   
     elif args.source is not None: # 폴더(여러개의 이미지)
