@@ -1,5 +1,7 @@
+import cv2
 import torch
 import argparse
+from PIL import Image
 from pathlib import Path
 
 def parse_opt():
@@ -8,6 +10,7 @@ def parse_opt():
     parser.add_argument("--source", type=str, default=None, help="image path : data/example") # image path
     parser.add_argument("--webcam", type=int, default=None, help="source of webcam : 0 / 1 / 2") # source number
     parser.add_argument("--weights", type=str, default="s", help="select s / m / l") # yolov5s / yolov5m / yolov5l
+    parser.add_argument("--device", type=str, default="cpu", help="select cpu / cuda / mac") # CPU / CUDA / MAC
     args = parser.parse_args()
     return args
 
@@ -40,7 +43,12 @@ def main():
     model = model.to(device)
     
     if args.img is not None: # 하나의 이미지
-        pass                
+        res = model(Image.open(args.img)) # detection
+        # xmin, ymin, xmax, ymax, confidence, classes -> DataFrame의 형태로
+        pred = res.pandas().xyxy[0]   
+        
+        print(pred)  
+                  
     elif args.source is not None: # 폴더(여러개의 이미지)
         pass
     elif args.webcam is not None: # 실시간 웹캠
