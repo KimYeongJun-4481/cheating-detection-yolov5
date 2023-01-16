@@ -1,7 +1,9 @@
+import os
 import cv2
 import time
 import torch
 import argparse
+from datetime import datetime
 from PIL import Image
 from pathlib import Path
 
@@ -12,6 +14,7 @@ def parse_opt():
     parser.add_argument("--webcam", type=int, default=None, help="source of webcam : 0 / 1 / 2") # source number
     parser.add_argument("--weights", type=str, default="s", help="select s / m / l") # yolov5s / yolov5m / yolov5l
     parser.add_argument("--device", type=str, default="cuda", help="select cpu / cuda / mac") # CPU / CUDA / MAC
+    parser.add_argument("--save_path", type=str, default=None, help="save results of images : first_test") # save path
     args = parser.parse_args()
     return args
 
@@ -32,14 +35,20 @@ def main():
         and args.webcam is None), "Few arguments to execute program"
 
     if args.device == "cuda": # cuda를 선택할 경우
-        assert torch.cuda.is_available, "CUDA is not available. set --device cpu" # cuda가 사용 불가능하다면
+        assert torch.cuda.is_available, "CUDA is not available. set --device cpu instead" # cuda가 사용 불가능하다면
         device = torch.device("cuda:0")
     elif args.device == "mac": 
         device = torch.device("mps") # m1 mac
     else:
         device = torch.device("cpu") # cpu
         
-    t = time.time() # 시작 시간 저장
+    if args.img is not None or args.source:
+        # 저장 경로를 선택하지 않을 경우 현재 시각을 이름으로 가진 폴더를 생성
+        if not os.path.isdir(save): os.mkdir(save)
+        if args.save_path is None : save_path = save / Path(datetime.now().strftime("%Y%m%d_%H%M%S"))
+        else: save_path = args.save_path
+        os.mkdir(save_path)
+        t = time.time() # 시작 시간 측정
     
     # detection model : yolov5s, yolov5m, yolov5l
     model = torch.hub.load('ultralytics/yolov5', f'yolov5{args.weights}')
@@ -52,6 +61,9 @@ def main():
         
         print(pred)  
         
+        res = res.render()[0] # render results
+        res = cv2.cvtColor(res, cv2.COLOR_BGR2RGB) # 컬러 채널 변환
+        cv2.imwrite(save_path / Path(args.img), res) # bounding box가 포함된 결과를 이미지로 저장
         print(f"Time : {(time.time() - t):.2f}s") # 총 소요 시간 측정
                   
     elif args.source is not None: # 폴더(여러개의 이미지)
