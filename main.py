@@ -23,6 +23,32 @@ def parse_opt():
     args = parser.parse_args()
     return args
 
+# annotation function
+def annotate(im, pred, classes, class_names, colors, line_thickness, conf_thres):
+    annotator = Annotator(im, line_width=line_thickness, example=classes) # annotator
+    count = {classes[i] : 0 for i in range(len(classes))} # 물체들의 개수
+    cheat = False # 부정행위 의심 여부
+    if len(pred): # 물체가 하나라도 감지될 경우
+        for i in range(len(pred)):
+            *xyxy, conf, cls = pred.iloc[i, :].tolist() # xyxy(bounding box), confidence, class
+            if isinstance(conf, np.int64) and conf > 1.0: conf = np.float32(conf) / 100 # 정수형일 경우 실수형으로 변환
+            if cls not in classes or float(conf) < conf_thres: continue # 물체가 클래스 항목에 존재하고 conf_thres 값보다 클 경우만 부정행위로 간주
+            label = f"{cls} {float(conf):.2f}" # 클래스 정보와 confidence
+            annotator.box_label(xyxy, label, color=tuple(reversed(colors[cls]))) # annotator에 bounding box 그리기
+            count[cls] += 1 # 개수 측정 
+            print(f"부정행위 의심 : {class_names[cls]} 감지({conf*100:.2f}%)") # 부정행위 의심 메시지
+        
+        for key in count.keys(): 
+            if key == 'person' and count['person'] > 0: # 사람이 감지될 경우 명수를 출력
+                print(f"사람 {count['person']}명 감지")
+            elif count[key] > 0: # 부정행위 의심에 해당하는 물체가 하나라도 감지됐을 경우
+                cheat = True
+                
+    if not cheat:
+        print("정상 : 감지된 물체 없음") # 감지된 물체가 없을 경우
+            
+    return annotator.result()
+
 def main():
     args = parse_opt() # arguments
     save = Path("results") # 저장 경로의 상위 경로
@@ -69,29 +95,9 @@ def main():
         # xmin, ymin, xmax, ymax, confidence, classes -> DataFrame의 형태로
         pred = res.pandas().xyxy[0]   
         
-        annotator = Annotator(im, line_width=args.line_thickness, example=classes)
-        count = {classes[i] : 0 for i in range(len(classes))} # 물체들의 개수
-        cheat = False
-        if len(pred):
-            for i in range(len(pred)):
-                *xyxy, conf, cls = pred.iloc[i, :].tolist() # xyxy(bounding box), confidence, class
-                if isinstance(conf, np.int64) and conf > 1.0: conf = np.float32(conf) / 100 # 정수형일 경우 실수형으로 변환
-                if cls not in classes or float(conf) < args.conf_thres: continue # 물체가 클래스 항목에 존재하고 conf_thres 값보다 클 경우만 부정행위로 간주
-                label = f"{cls} {float(conf):.2f}" # 클래스 정보와 confidence
-                annotator.box_label(xyxy, label, color=tuple(reversed(colors[cls]))) # annotator에 bounding box 그리기
-                count[cls] += 1 # 개수 측정 
-                print(f"부정행위 의심 : {class_names[cls]} 감지({conf*100:.2f}%)") # 부정행위 의심 메시지
-            
-            for key in count.keys(): 
-                if key == 'person' and count['person'] > 0: # 사람이 감지될 경우 명수를 출력
-                    print(f"사람 {count['person']}명 감지")
-                elif count[key] > 0: # 부정행위 의심에 해당하는 물체가 하나라도 감지됐을 경우
-                    cheat = True
-                    
-        if not cheat:
-            print("정상 : 감지된 물체 없음") # 감지된 물체가 없을 경우
+        cv2.imwrite(save_path / Path(args.img), \
+            annotate(im, pred, classes, class_names, colors, args.line_thickness, args.conf_thres)) # bounding box가 포함된 결과를 이미지로 저장
         
-        cv2.imwrite(save_path / Path(args.img), annotator.result()) # bounding box가 포함된 결과를 이미지로 저장
         print(f"Time : {(time.time() - t):.2f}s") # 총 소요 시간 측정
                   
     elif args.source is not None: # 폴더(여러개의 이미지)
