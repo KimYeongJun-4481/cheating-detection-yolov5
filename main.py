@@ -10,6 +10,16 @@ from datetime import datetime
 
 from utils.plots import Annotator, colors
 
+"""
+[명령어 예시]
+python main.py --img image.jpg
+python main.py --img image.jpg --weights m
+python main.py --source data/example
+python main.py --source example --device cpu
+python main.py --webcam 0
+python main.py --webcam 0 --device cuda
+"""
+
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument("--img", type=str, default=None, help="select one of image : data/image.jpg") # image file name
