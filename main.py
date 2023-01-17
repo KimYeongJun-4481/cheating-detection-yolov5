@@ -46,15 +46,19 @@ def annotate(im, pred, classes, class_names, colors, line_thickness, conf_thres,
     if not cheat:
         print("정상 : 감지된 물체 없음") # 감지된 물체가 없을 경우
     
-    if save is not None:
+    if save is not None: 
         cv2.imwrite(save, annotator.result()) # bounding box가 포함된 결과를 이미지로 저장
-    else: # 웹캠일 경우
+    else: # 웹캠
         return annotator.result()
 
 # predict function
 def predict(model, img):
-    im = cv2.imread(img) # 원본 이미지
-    res = model(Image.open(img)) # detection
+    if isinstance(img, np.ndarray): # 이미지가 경로가 아닌 numpy 배열일 경우
+        im = img # 원본 이미지
+        res = model(img) # detection
+    else:
+        im = cv2.imread(img) # 원본 이미지
+        res = model(Image.open(img)) # detection
     pred = res.pandas().xyxy[0] # xmin, ymin, xmax, ymax, confidence, classes -> DataFrame의 형태로
     pred = pred.drop(columns=['class'], axis=1) # class number 제거 -> 클래스의 영어 이름만 사용하기 때문
     
@@ -124,7 +128,20 @@ def main():
         print(f"Time : {(time.time() - t):.2f}s") # 총 소요 시간 측정
         
     elif args.webcam is not None: # 실시간 웹캠
-        pass
+        print("starting with webcam")
+        line_thickness = 4
+        cap = cv2.VideoCapture(args.webcam)
+        while True:
+            _, frame = cap.read()
+            im, pred = predict(model, frame) # 모델을 이용해 물체를 감지
+            cv2.imshow("exam", annotate(im, pred, classes, class_names, colors, 
+                line_thickness, args.conf_thres)) # bounding box가 포함된 프레임을 실시간으로 스트리밍
+    
+            if cv2.waitKey(1) == ord('q'): # q를 누를 경우 종료
+                break
+        
+        cap.release()
+        cv2.destroyAllWindows()
     
 if __name__ == "__main__":
     main()
