@@ -1,3 +1,23 @@
+## <div align="center">Cheating Detection using YOLOv5</div>
+[실행방법]
+
++ 하나의 이미지에서 부정행위 감지
+
+```
+python main.py --img image.jpg
+```
+
++ 여러개의 이미지(폴더)에서 부정행위 감지
+```
+python main.py --source images
+```
+
++ 웹캠을 통한 부정행위 감지
+```
+python main.py --source 0
+```
+------------
+
 <div align="center">
   <p>
     <a align="center" href="https://ultralytics.com/yolov5" target="_blank">
